@@ -1,26 +1,3 @@
-provider "aws" {
-  region = "us-east-1"
-}
-
-data "aws_caller_identity" "current" {}
-
-data "aws_region" "current" {}
-
-variable "source_repo_name" {
-  description = "Source repo name"
-  type        = string
-}
-
-variable "source_repo_branch" {
-  description = "Source repo branch"
-  type        = string
-}
-
-variable "image_repo_name" {
-  description = "Image repo name"
-  type        = string
-}
-
 resource "aws_codecommit_repository" "source_repo" {
   repository_name = var.source_repo_name
   description     = "Source App Repo"
@@ -419,7 +396,7 @@ resource "aws_codebuild_project" "codebuild_tfsec" {
   }
   environment {
     compute_type                = "BUILD_GENERAL1_SMALL"
-    image                       = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/tfsec:latest"
+    image                       = "tfsec/tfsec:latest"
     type                        = "LINUX_CONTAINER"
     privileged_mode             = false
     image_pull_credentials_type = "CODEBUILD"
@@ -672,20 +649,20 @@ resource "aws_codepipeline" "pipeline" {
   stage {
     name = "tf-sec-lint"
     action {
-      name = "tf-sec"
+      name            = "tf-sec"
       category        = "Build"
       owner           = "AWS"
       version         = "1"
       provider        = "CodeBuild"
       input_artifacts = ["SourceOutput"]
       run_order       = 1
-      namespace = "TFSEC"
+      namespace       = "TFSEC"
       configuration = {
         ProjectName = aws_codebuild_project.codebuild_tfsec.id
       }
     }
     action {
-      name = "tf-lint"
+      name            = "tf-lint"
       category        = "Build"
       owner           = "AWS"
       version         = "1"
@@ -700,14 +677,14 @@ resource "aws_codepipeline" "pipeline" {
   stage {
     name = "TerraformActions"
     action {
-      name = "approval-tfsec"
-      category = "Approval"
-      owner    = "AWS"
-      provider = "Manual"
-      version  = "1"
+      name      = "approval-tfsec"
+      category  = "Approval"
+      owner     = "AWS"
+      provider  = "Manual"
+      version   = "1"
       run_order = 1
       configuration = {
-        CustomData = "tfsec errors found: #{TFSEC.checks_errors}, tfsec high found: #{TFSEC.check_high}, tfsec warning found: #{TFSEC.check_warning}, tfsec low found: #{TFSEC.check_low}"
+        CustomData         = "tfsec errors found: #{TFSEC.checks_errors}, tfsec high found: #{TFSEC.check_high}, tfsec warning found: #{TFSEC.check_warning}, tfsec low found: #{TFSEC.check_low}"
         ExternalEntityLink = "https://#{TFSEC.Region}.console.aws.amazon.com/codesuite/codebuild/${data.aws_caller_identity.current.account_id}/projects/#{TFSEC.BuildID}/build/#{TFSEC.BuildID}%3A#{TFSEC.BuildTag}/reports?region=#{TFSEC.Region}"
       }
     }
@@ -724,11 +701,11 @@ resource "aws_codepipeline" "pipeline" {
       }
     }
     action {
-      name = "approval-terraform-plan"
-      category = "Approval"
-      owner    = "AWS"
-      provider = "Manual"
-      version  = "1"
+      name      = "approval-terraform-plan"
+      category  = "Approval"
+      owner     = "AWS"
+      provider  = "Manual"
+      version   = "1"
       run_order = 3
     }
     action {
@@ -742,6 +719,6 @@ resource "aws_codepipeline" "pipeline" {
       configuration = {
         ProjectName = aws_codebuild_project.codebuild_terraform.id
       }
-  }
+    }
   }
 }
